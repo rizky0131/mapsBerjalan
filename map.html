@@ -1,0 +1,1210 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Lokasi Virtual - Meningkatkan Orderan Grab/Shopee Food</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background-color: #f8f9fa;
+            color: #333;
+            overflow-x: hidden;
+            height: 100vh;
+            padding-top: env(safe-area-inset-top);
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+        
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            max-width: 100%;
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #00b14f 0%, #00913c 100%);
+            color: white;
+            padding: 18px 15px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+        }
+        
+        .header h1 {
+            font-size: 1.4rem;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+        
+        .header p {
+            font-size: 0.85rem;
+            opacity: 0.9;
+            max-width: 90%;
+            margin: 0 auto;
+        }
+        
+        .map-container {
+            flex: 1;
+            position: relative;
+            min-height: 0;
+        }
+        
+        #map {
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+        
+        .controls-overlay {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .control-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background-color: white;
+            border: none;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            color: #00b14f;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .control-btn:active {
+            transform: scale(0.95);
+            background-color: #f0f0f0;
+        }
+        
+        .control-panel {
+            background-color: white;
+            padding: 20px 15px;
+            border-top-left-radius: 20px;
+            border-top-right-radius: 20px;
+            box-shadow: 0 -2px 15px rgba(0, 0, 0, 0.1);
+            overflow-y: auto;
+            max-height: 45vh;
+        }
+        
+        .panel-tabs {
+            display: flex;
+            margin-bottom: 20px;
+            background-color: #f5f5f5;
+            border-radius: 10px;
+            padding: 5px;
+        }
+        
+        .tab-btn {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            background: none;
+            border-radius: 8px;
+            font-weight: 600;
+            color: #666;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .tab-btn.active {
+            background-color: white;
+            color: #00b14f;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        
+        .panel-content {
+            display: none;
+        }
+        
+        .panel-content.active {
+            display: block;
+        }
+        
+        .section-title {
+            font-size: 1rem;
+            color: #00b14f;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .location-info {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 0.9rem;
+        }
+        
+        .info-label {
+            color: #666;
+        }
+        
+        .info-value {
+            font-weight: 600;
+            color: #333;
+            text-align: right;
+            max-width: 60%;
+            word-break: break-word;
+        }
+        
+        .movement-controls {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+            height: 180px;
+        }
+        
+        .direction-btn {
+            background-color: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            font-size: 1.3rem;
+            color: #333;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .direction-btn:active {
+            background-color: #00b14f;
+            color: white;
+            border-color: #00b14f;
+            transform: scale(0.95);
+        }
+        
+        #btnUp {
+            grid-column: 2;
+            grid-row: 1;
+        }
+        
+        #btnLeft {
+            grid-column: 1;
+            grid-row: 2;
+        }
+        
+        #btnCenter {
+            grid-column: 2;
+            grid-row: 2;
+            background-color: #00b14f;
+            color: white;
+            border-color: #00b14f;
+        }
+        
+        #btnRight {
+            grid-column: 3;
+            grid-row: 2;
+        }
+        
+        #btnDown {
+            grid-column: 2;
+            grid-row: 3;
+        }
+        
+        .speed-control {
+            margin-bottom: 20px;
+        }
+        
+        .speed-options {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .speed-option {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            background-color: white;
+            font-weight: 600;
+            color: #666;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+        
+        .speed-option.active {
+            border-color: #00b14f;
+            background-color: #00b14f;
+            color: white;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .action-btn {
+            flex: 1;
+            padding: 15px;
+            border: none;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .action-btn:active {
+            transform: scale(0.98);
+        }
+        
+        #btnStart {
+            background-color: #00b14f;
+            color: white;
+        }
+        
+        #btnPause {
+            background-color: #ff9800;
+            color: white;
+        }
+        
+        #btnReset {
+            background-color: #f44336;
+            color: white;
+        }
+        
+        .auto-walk-options {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .walk-option {
+            padding: 15px;
+            background-color: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .walk-option:active {
+            border-color: #00b14f;
+            background-color: #f0f9f3;
+            transform: scale(0.98);
+        }
+        
+        .walk-icon {
+            font-size: 1.5rem;
+            color: #00b14f;
+            margin-bottom: 8px;
+        }
+        
+        .walk-title {
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #333;
+        }
+        
+        .walk-desc {
+            font-size: 0.8rem;
+            color: #666;
+        }
+        
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 15px;
+            background-color: #f0f9f3;
+            border-radius: 10px;
+            margin-top: 15px;
+        }
+        
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background-color: #f44336;
+        }
+        
+        .status-dot.active {
+            background-color: #00b14f;
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.6; }
+            100% { opacity: 1; }
+        }
+        
+        .distance {
+            font-weight: 600;
+            color: #00b14f;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .tips-list {
+            padding-left: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .tips-list li {
+            margin-bottom: 10px;
+            font-size: 0.9rem;
+            color: #555;
+        }
+        
+        .warning-box {
+            background-color: #fff8e1;
+            border-left: 4px solid #ff9800;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            font-size: 0.85rem;
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+        
+        /* Responsive adjustments */
+        @media (max-height: 700px) {
+            .control-panel {
+                max-height: 50vh;
+            }
+            
+            .movement-controls {
+                height: 150px;
+            }
+        }
+        
+        @media (max-width: 350px) {
+            .header h1 {
+                font-size: 1.2rem;
+            }
+            
+            .control-btn {
+                width: 45px;
+                height: 45px;
+                font-size: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="header">
+            <h1><i class="fas fa-map-marker-alt"></i> Lokasi Virtual Grab/Shopee Food</h1>
+            <p>Simulasikan pergerakan untuk meningkatkan peluang orderan (Gunakan dengan bijak)</p>
+        </div>
+        
+        <div class="map-container">
+            <div id="map"></div>
+            
+            <div class="controls-overlay">
+                <button class="control-btn" id="btnLocate" title="Lokasi Saya">
+                    <i class="fas fa-location-arrow"></i>
+                </button>
+                <button class="control-btn" id="btnHotspot" title="Area Ramai Orderan">
+                    <i class="fas fa-fire"></i>
+                </button>
+                <button class="control-btn" id="btnInfo" title="Tips">
+                    <i class="fas fa-info-circle"></i>
+                </button>
+            </div>
+        </div>
+        
+        <div class="control-panel">
+            <div class="panel-tabs">
+                <button class="tab-btn active" data-tab="location">Lokasi</button>
+                <button class="tab-btn" data-tab="controls">Kontrol</button>
+                <button class="tab-btn" data-tab="auto">Auto Walk</button>
+            </div>
+            
+            <!-- Tab Lokasi -->
+            <div class="panel-content active" id="location-tab">
+                <h3 class="section-title"><i class="fas fa-map-pin"></i> Informasi Lokasi</h3>
+                <div class="location-info">
+                    <div class="info-row">
+                        <span class="info-label">Latitude:</span>
+                        <span class="info-value" id="latitude">-6.200000</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Longitude:</span>
+                        <span class="info-value" id="longitude">106.816666</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Alamat:</span>
+                        <span class="info-value" id="address">Jakarta Pusat</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Status:</span>
+                        <span class="info-value" id="status-text">Siap Menerima Order</span>
+                    </div>
+                </div>
+                
+                <div class="status-bar">
+                    <div class="status-indicator">
+                        <div class="status-dot" id="statusDot"></div>
+                        <span id="movement-status">Berhenti</span>
+                    </div>
+                    <div class="distance">Jarak: <span id="distance">0</span> km</div>
+                </div>
+            </div>
+            
+            <!-- Tab Kontrol -->
+            <div class="panel-content" id="controls-tab">
+                <h3 class="section-title"><i class="fas fa-gamepad"></i> Kontrol Manual</h3>
+                
+                <div class="movement-controls">
+                    <button class="direction-btn" id="btnUp"><i class="fas fa-arrow-up"></i></button>
+                    <button class="direction-btn" id="btnLeft"><i class="fas fa-arrow-left"></i></button>
+                    <button class="direction-btn" id="btnCenter"><i class="fas fa-street-view"></i></button>
+                    <button class="direction-btn" id="btnRight"><i class="fas fa-arrow-right"></i></button>
+                    <button class="direction-btn" id="btnDown"><i class="fas fa-arrow-down"></i></button>
+                </div>
+                
+                <div class="speed-control">
+                    <h3 class="section-title"><i class="fas fa-tachometer-alt"></i> Kecepatan</h3>
+                    <div class="speed-options">
+                        <div class="speed-option active" data-speed="0.0001">Lambat</div>
+                        <div class="speed-option" data-speed="0.0003">Sedang</div>
+                        <div class="speed-option" data-speed="0.0006">Cepat</div>
+                    </div>
+                </div>
+                
+                <div class="action-buttons">
+                    <button class="action-btn" id="btnStart"><i class="fas fa-play"></i> Mulai</button>
+                    <button class="action-btn" id="btnPause"><i class="fas fa-pause"></i> Jeda</button>
+                    <button class="action-btn" id="btnReset"><i class="fas fa-redo"></i> Reset</button>
+                </div>
+            </div>
+            
+            <!-- Tab Auto Walk -->
+            <div class="panel-content" id="auto-tab">
+                <h3 class="section-title"><i class="fas fa-route"></i> Mode Auto Walk</h3>
+                <p style="margin-bottom: 15px; font-size: 0.9rem; color: #666;">Pilih pola perjalanan otomatis untuk meningkatkan visibilitas di area potensial</p>
+                
+                <div class="auto-walk-options">
+                    <div class="walk-option" id="walkHotspots">
+                        <div class="walk-icon"><i class="fas fa-fire"></i></div>
+                        <div class="walk-title">Area Ramai</div>
+                        <div class="walk-desc">Kunjungi lokasi ramai orderan</div>
+                    </div>
+                    
+                    <div class="walk-option" id="walkSquare">
+                        <div class="walk-icon"><i class="fas fa-square"></i></div>
+                        <div class="walk-title">Pola Kotak</div>
+                        <div class="walk-desc">Jelajahi area secara sistematis</div>
+                    </div>
+                    
+                    <div class="walk-option" id="walkRandom">
+                        <div class="walk-icon"><i class="fas fa-random"></i></div>
+                        <div class="walk-title">Acak</div>
+                        <div class="walk-desc">Pergerakan tidak terduga</div>
+                    </div>
+                    
+                    <div class="walk-option" id="walkCircle">
+                        <div class="walk-icon"><i class="fas fa-sync-alt"></i></div>
+                        <div class="walk-title">Pola Lingkaran</div>
+                        <div class="walk-desc">Memutar di area tertentu</div>
+                    </div>
+                </div>
+                
+                <div class="warning-box">
+                    <strong><i class="fas fa-exclamation-triangle"></i> Tips:</strong> 
+                    <p style="margin-top: 5px;">Gunakan mode auto walk saat HP sedang di-charge. Aplikasi Grab/Shopee Food harus tetap terbuka di latar belakang.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal untuk tips -->
+    <div id="tipsModal" class="hidden" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.8); z-index: 2000; display: flex; align-items: center; justify-content: center; padding: 20px;">
+        <div style="background-color: white; border-radius: 15px; padding: 25px; max-width: 500px; width: 100%; max-height: 80vh; overflow-y: auto;">
+            <h2 style="color: #00b14f; margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
+                <i class="fas fa-lightbulb"></i> Tips Meningkatkan Orderan
+            </h2>
+            
+            <ol class="tips-list">
+                <li><strong>Pindah ke area ramai:</strong> Mall, perkantoran, dan perumahan padat biasanya banyak orderan.</li>
+                <li><strong>Waktu sibuk:</strong> Fokus pada jam makan (12:00-14:00, 18:00-20:00) untuk orderan makanan.</li>
+                <li><strong>Gerakan aktif:</strong> Driver yang bergerak lebih diprioritaskan oleh algoritma.</li>
+                <li><strong>Area hijau:</strong> Posisikan diri di area berwarna hijau di peta Grab/Shopee Food.</li>
+                <li><strong>Koneksi stabil:</strong> Pastikan sinyal internet bagus agar lokasi terdeteksi dengan baik.</li>
+                <li><strong>Aplikasi tetap terbuka:</strong> Biarkan aplikasi Grab/Shopee Food berjalan di latar belakang.</li>
+            </ol>
+            
+            <div class="warning-box">
+                <strong>Penting:</strong> Website ini hanya untuk simulasi. Pastikan untuk tidak melanggar ketentuan aplikasi delivery. Gunakan dengan bijak dan bertanggung jawab.
+            </div>
+            
+            <button id="closeTips" style="margin-top: 20px; width: 100%; padding: 15px; background-color: #00b14f; color: white; border: none; border-radius: 10px; font-weight: 600; cursor: pointer;">
+                <i class="fas fa-check"></i> Mengerti
+            </button>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // Inisialisasi variabel
+        let map, userMarker, userCircle;
+        let userLat = -6.200000; // Jakarta Pusat
+        let userLng = 106.816666;
+        let isMoving = false;
+        let autoWalkMode = null;
+        let moveInterval;
+        let currentSpeed = 0.0003; // Kecepatan default
+        let totalDistance = 0;
+        let currentDirection = null;
+        let hotspots = [];
+        
+        // Inisialisasi peta saat halaman dimuat
+        document.addEventListener('DOMContentLoaded', function() {
+            initMap();
+            setupEventListeners();
+            setupHotspots();
+            
+            // Simulasikan lokasi awal di area ramai
+            setTimeout(() => {
+                updateAddress("Jl. Thamrin, Jakarta Pusat (Area Ramai Orderan)");
+            }, 1000);
+        });
+        
+        // Inisialisasi peta
+        function initMap() {
+            // Buat peta dengan view di Jakarta Pusat
+            map = L.map('map').setView([userLat, userLng], 16);
+            
+            // Tambahkan tile layer
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap contributors',
+                maxZoom: 19
+            }).addTo(map);
+            
+            // Tambahkan marker untuk user
+            userMarker = L.marker([userLat, userLng], {
+                icon: L.divIcon({
+                    className: 'user-marker',
+                    html: '<div style="background-color: #00b14f; color: white; border-radius: 50%; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; border: 3px solid white; box-shadow: 0 0 15px rgba(0,177,79,0.7);"><i class="fas fa-motorcycle" style="font-size: 20px;"></i></div>',
+                    iconSize: [50, 50],
+                    iconAnchor: [25, 50]
+                }),
+                draggable: false
+            }).addTo(map);
+            
+            // Tambahkan circle untuk visualisasi radius
+            userCircle = L.circle([userLat, userLng], {
+                color: '#00b14f',
+                fillColor: '#00b14f',
+                fillOpacity: 0.1,
+                radius: 200 // 200 meter
+            }).addTo(map);
+            
+            // Update informasi lokasi
+            updateLocationInfo();
+            
+            // Tambahkan beberapa area ramai
+            addHotspotMarkers();
+        }
+        
+        // Setup area ramai (hotspots) untuk orderan
+        function setupHotspots() {
+            hotspots = [
+                {lat: -6.195, lng: 106.820, name: "Plaza Indonesia", type: "mall"},
+                {lat: -6.205, lng: 106.818, name: "Grand Indonesia", type: "mall"},
+                {lat: -6.190, lng: 106.823, name: "Kawasan Sudirman", type: "office"},
+                {lat: -6.210, lng: 106.815, name: "Menteng", type: "residential"},
+                {lat: -6.200, lng: 106.830, name: "Pasar Baru", type: "market"}
+            ];
+        }
+        
+        // Tambahkan marker untuk area ramai
+        function addHotspotMarkers() {
+            hotspots.forEach(hotspot => {
+                const iconColor = hotspot.type === 'mall' ? '#ff9800' : 
+                                 hotspot.type === 'office' ? '#2196f3' : '#4caf50';
+                
+                const hotspotIcon = L.divIcon({
+                    className: 'hotspot-marker',
+                    html: `<div style="background-color: ${iconColor}; color: white; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border: 2px solid white; box-shadow: 0 0 10px rgba(0,0,0,0.3);">
+                              <i class="fas ${hotspot.type === 'mall' ? 'fa-shopping-cart' : hotspot.type === 'office' ? 'fa-building' : 'fa-home'}" style="font-size: 16px;"></i>
+                           </div>`,
+                    iconSize: [40, 40],
+                    iconAnchor: [20, 40]
+                });
+                
+                L.marker([hotspot.lat, hotspot.lng], {icon: hotspotIcon})
+                 .addTo(map)
+                 .bindPopup(`<b>${hotspot.name}</b><br>Area ramai orderan`);
+            });
+        }
+        
+        // Setup semua event listeners
+        function setupEventListeners() {
+            // Tombol arah
+            document.getElementById('btnUp').addEventListener('click', () => moveUser('up'));
+            document.getElementById('btnDown').addEventListener('click', () => moveUser('down'));
+            document.getElementById('btnLeft').addEventListener('click', () => moveUser('left'));
+            document.getElementById('btnRight').addEventListener('click', () => moveUser('right'));
+            document.getElementById('btnCenter').addEventListener('click', centerOnUser);
+            
+            // Tombol kecepatan
+            document.querySelectorAll('.speed-option').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    document.querySelectorAll('.speed-option').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    currentSpeed = parseFloat(this.dataset.speed);
+                });
+            });
+            
+            // Tombol aksi
+            document.getElementById('btnStart').addEventListener('click', startMoving);
+            document.getElementById('btnPause').addEventListener('click', pauseMoving);
+            document.getElementById('btnReset').addEventListener('click', resetPosition);
+            
+            // Tombol overlay
+            document.getElementById('btnLocate').addEventListener('click', centerOnUser);
+            document.getElementById('btnHotspot').addEventListener('click', goToNearestHotspot);
+            document.getElementById('btnInfo').addEventListener('click', showTips);
+            document.getElementById('closeTips').addEventListener('click', hideTips);
+            
+            // Tab panel
+            document.querySelectorAll('.tab-btn').forEach(tab => {
+                tab.addEventListener('click', function() {
+                    const tabId = this.dataset.tab;
+                    
+                    // Update tab aktif
+                    document.querySelectorAll('.tab-btn').forEach(t => t.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    // Tampilkan konten tab yang sesuai
+                    document.querySelectorAll('.panel-content').forEach(content => {
+                        content.classList.remove('active');
+                    });
+                    document.getElementById(`${tabId}-tab`).classList.add('active');
+                });
+            });
+            
+            // Tombol auto walk
+            document.getElementById('walkHotspots').addEventListener('click', () => startAutoWalk('hotspots'));
+            document.getElementById('walkSquare').addEventListener('click', () => startAutoWalk('square'));
+            document.getElementById('walkRandom').addEventListener('click', () => startAutoWalk('random'));
+            document.getElementById('walkCircle').addEventListener('click', () => startAutoWalk('circle'));
+            
+            // Tambahkan touch events untuk kontrol yang lebih responsif
+            document.querySelectorAll('.direction-btn').forEach(btn => {
+                btn.addEventListener('touchstart', function(e) {
+                    e.preventDefault();
+                    this.style.backgroundColor = '#00b14f';
+                    this.style.color = 'white';
+                    
+                    const direction = this.id.replace('btn', '').toLowerCase();
+                    if (direction !== 'center') {
+                        moveUser(direction);
+                    }
+                });
+                
+                btn.addEventListener('touchend', function(e) {
+                    e.preventDefault();
+                    this.style.backgroundColor = '';
+                    this.style.color = '';
+                });
+            });
+            
+            // Tangani swipe gesture di peta
+            let touchStartX, touchStartY;
+            map.getContainer().addEventListener('touchstart', function(e) {
+                touchStartX = e.touches[0].clientX;
+                touchStartY = e.touches[0].clientY;
+            });
+            
+            map.getContainer().addEventListener('touchend', function(e) {
+                if (!touchStartX || !touchStartY) return;
+                
+                const touchEndX = e.changedTouches[0].clientX;
+                const touchEndY = e.changedTouches[0].clientY;
+                
+                const diffX = touchEndX - touchStartX;
+                const diffY = touchEndY - touchStartY;
+                
+                // Jika swipe cukup panjang (minimal 50px)
+                if (Math.abs(diffX) > 50 || Math.abs(diffY) > 50) {
+                    // Tentukan arah berdasarkan swipe
+                    if (Math.abs(diffX) > Math.abs(diffY)) {
+                        // Horizontal swipe
+                        moveUser(diffX > 0 ? 'right' : 'left');
+                    } else {
+                        // Vertical swipe
+                        moveUser(diffY > 0 ? 'down' : 'up');
+                    }
+                }
+                
+                // Reset touch coordinates
+                touchStartX = null;
+                touchStartY = null;
+            });
+        }
+        
+        // Pindah ke hotspot terdekat
+        function goToNearestHotspot() {
+            pauseMoving();
+            
+            // Cari hotspot terdekat
+            let nearestHotspot = null;
+            let minDistance = Infinity;
+            
+            hotspots.forEach(hotspot => {
+                const distance = calculateDistance(userLat, userLng, hotspot.lat, hotspot.lng);
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    nearestHotspot = hotspot;
+                }
+            });
+            
+            if (nearestHotspot) {
+                userLat = nearestHotspot.lat;
+                userLng = nearestHotspot.lng;
+                
+                updateUserPosition();
+                updateAddress(`Area ramai: ${nearestHotspot.name}`);
+                updateStatus(`Siap di ${nearestHotspot.name}`);
+                
+                // Tampilkan notifikasi
+                showNotification(`Pindah ke ${nearestHotspot.name}`, 'success');
+            }
+        }
+        
+        // Gerakkan user
+        function moveUser(direction) {
+            // Set arah saat ini
+            currentDirection = direction;
+            
+            // Hitung perubahan posisi
+            let latChange = 0;
+            let lngChange = 0;
+            
+            switch(direction) {
+                case 'up': latChange = currentSpeed; break;
+                case 'down': latChange = -currentSpeed; break;
+                case 'left': lngChange = -currentSpeed; break;
+                case 'right': lngChange = currentSpeed; break;
+            }
+            
+            // Update posisi
+            const oldLat = userLat;
+            const oldLng = userLng;
+            
+            userLat += latChange;
+            userLng += lngChange;
+            
+            // Hitung jarak
+            const distance = calculateDistance(oldLat, oldLng, userLat, userLng);
+            totalDistance += distance;
+            
+            // Update posisi di peta
+            updateUserPosition();
+            
+            // Update status
+            if (isMoving) {
+                updateStatus(`Berjalan ke ${getDirectionName(direction)}`);
+            } else {
+                updateStatus(`Pindah ke ${getDirectionName(direction)}`);
+            }
+            
+            // Update alamat secara berkala
+            if (Math.random() > 0.8) {
+                simulateAddressChange();
+            }
+            
+            // Cek jika dekat dengan hotspot
+            checkNearHotspot();
+        }
+        
+        // Update posisi user di peta
+        function updateUserPosition() {
+            userMarker.setLatLng([userLat, userLng]);
+            userCircle.setLatLng([userLat, userLng]);
+            updateLocationInfo();
+            document.getElementById('distance').textContent = totalDistance.toFixed(2);
+        }
+        
+        // Update informasi lokasi
+        function updateLocationInfo() {
+            document.getElementById('latitude').textContent = userLat.toFixed(6);
+            document.getElementById('longitude').textContent = userLng.toFixed(6);
+        }
+        
+        // Update alamat (simulasi)
+        function updateAddress(address) {
+            document.getElementById('address').textContent = address;
+        }
+        
+        // Update status
+        function updateStatus(status) {
+            document.getElementById('status-text').textContent = status;
+        }
+        
+        // Simulasi perubahan alamat
+        function simulateAddressChange() {
+            const streetNames = ["Jl. Thamrin", "Jl. Sudirman", "Jl. Gatot Subroto", "Jl. MH Thamrin", "Jl. HR Rasuna Said"];
+            const areaNames = ["Jakarta Pusat", "Jakarta Selatan", "Kebayoran Baru", "Menteng", "Senayan"];
+            const randomStreet = streetNames[Math.floor(Math.random() * streetNames.length)];
+            const randomArea = areaNames[Math.floor(Math.random() * areaNames.length)];
+            
+            updateAddress(`${randomStreet}, ${randomArea}`);
+        }
+        
+        // Hitung jarak antara dua titik (dalam km)
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371;
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = 
+                Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+                Math.sin(dLon/2) * Math.sin(dLon/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+        }
+        
+        // Dapatkan nama arah
+        function getDirectionName(direction) {
+            switch(direction) {
+                case 'up': return 'Utara';
+                case 'down': return 'Selatan';
+                case 'left': return 'Barat';
+                case 'right': return 'Timur';
+                default: return '';
+            }
+        }
+        
+        // Mulai pergerakan kontinu
+        function startMoving() {
+            if (!currentDirection) {
+                // Jika belum ada arah, set ke utara
+                currentDirection = 'up';
+            }
+            
+            if (!isMoving) {
+                isMoving = true;
+                updateMovementStatus();
+                
+                moveInterval = setInterval(() => {
+                    if (autoWalkMode) {
+                        executeAutoWalk();
+                    } else {
+                        moveUser(currentDirection);
+                    }
+                }, 300); // Gerakan setiap 300ms
+            }
+        }
+        
+        // Jeda pergerakan
+        function pauseMoving() {
+            isMoving = false;
+            autoWalkMode = null;
+            
+            if (moveInterval) {
+                clearInterval(moveInterval);
+            }
+            
+            updateMovementStatus();
+            updateStatus("Berhenti");
+        }
+        
+        // Reset posisi
+        function resetPosition() {
+            pauseMoving();
+            userLat = -6.200000;
+            userLng = 106.816666;
+            totalDistance = 0;
+            updateUserPosition();
+            updateAddress("Jakarta Pusat");
+            updateStatus("Siap Menerima Order");
+            
+            showNotification("Posisi direset ke lokasi awal", "info");
+        }
+        
+        // Pusatkan peta pada user
+        function centerOnUser() {
+            map.setView([userLat, userLng], 16);
+            showNotification("Peta dipusatkan ke lokasi Anda", "info");
+        }
+        
+        // Update status pergerakan
+        function updateMovementStatus() {
+            const statusDot = document.getElementById('statusDot');
+            const movementStatus = document.getElementById('movement-status');
+            
+            if (isMoving) {
+                statusDot.classList.add('active');
+                movementStatus.textContent = autoWalkMode ? `Auto: ${autoWalkMode}` : "Berjalan";
+                document.getElementById('btnStart').innerHTML = '<i class="fas fa-play"></i> Lanjutkan';
+            } else {
+                statusDot.classList.remove('active');
+                movementStatus.textContent = "Berhenti";
+                document.getElementById('btnStart').innerHTML = '<i class="fas fa-play"></i> Mulai';
+            }
+        }
+        
+        // Mulai auto walk dengan pola tertentu
+        function startAutoWalk(mode) {
+            autoWalkMode = mode;
+            currentDirection = 'up'; // Arah awal
+            
+            if (!isMoving) {
+                startMoving();
+            }
+            
+            showNotification(`Mode Auto Walk: ${mode} diaktifkan`, "success");
+            updateStatus(`Auto Walk: ${mode}`);
+            
+            // Switch ke tab kontrol
+            document.querySelector('[data-tab="controls"]').click();
+        }
+        
+        // Eksekusi auto walk berdasarkan mode
+        function executeAutoWalk() {
+            if (!autoWalkMode) return;
+            
+            switch(autoWalkMode) {
+                case 'hotspots':
+                    autoWalkToHotspots();
+                    break;
+                case 'square':
+                    autoWalkSquare();
+                    break;
+                case 'random':
+                    autoWalkRandom();
+                    break;
+                case 'circle':
+                    autoWalkCircle();
+                    break;
+            }
+        }
+        
+        // Auto walk menuju hotspot
+        function autoWalkToHotspots() {
+            // Cari hotspot terdekat
+            let nearestHotspot = null;
+            let minDistance = Infinity;
+            
+            hotspots.forEach(hotspot => {
+                const distance = calculateDistance(userLat, userLng, hotspot.lat, hotspot.lng);
+                if (distance < minDistance && distance > 0.1) { // Lebih dari 100m
+                    minDistance = distance;
+                    nearestHotspot = hotspot;
+                }
+            });
+            
+            if (nearestHotspot) {
+                // Tentukan arah menuju hotspot
+                const latDiff = nearestHotspot.lat - userLat;
+                const lngDiff = nearestHotspot.lng - userLng;
+                
+                if (Math.abs(latDiff) > Math.abs(lngDiff)) {
+                    currentDirection = latDiff > 0 ? 'up' : 'down';
+                } else {
+                    currentDirection = lngDiff > 0 ? 'right' : 'left';
+                }
+                
+                moveUser(currentDirection);
+            } else {
+                // Jika sudah dekat dengan semua hotspot, pilih random
+                autoWalkMode = 'random';
+            }
+        }
+        
+        // Auto walk pola kotak
+        function autoWalkSquare() {
+            // Implementasi sederhana pola kotak
+            const steps = 15; // Jumlah langkah per sisi
+            
+            if (!window.squareStep) window.squareStep = 0;
+            if (!window.squareSide) window.squareSide = 0;
+            
+            // 0: atas, 1: kanan, 2: bawah, 3: kiri
+            const directions = ['up', 'right', 'down', 'left'];
+            
+            currentDirection = directions[window.squareSide];
+            
+            window.squareStep++;
+            
+            if (window.squareStep >= steps) {
+                window.squareStep = 0;
+                window.squareSide = (window.squareSide + 1) % 4;
+            }
+            
+            moveUser(currentDirection);
+        }
+        
+        // Auto walk acak
+        function autoWalkRandom() {
+            const directions = ['up', 'down', 'left', 'right'];
+            const randomIndex = Math.floor(Math.random() * directions.length);
+            currentDirection = directions[randomIndex];
+            
+            moveUser(currentDirection);
+        }
+        
+        // Auto walk pola lingkaran
+        function autoWalkCircle() {
+            if (!window.circleAngle) window.circleAngle = 0;
+            
+            const radius = 0.001; // Radius lingkaran
+            const centerLat = -6.200000;
+            const centerLng = 106.816666;
+            
+            // Hitung posisi baru berdasarkan sudut
+            window.circleAngle += 0.1;
+            userLat = centerLat + radius * Math.sin(window.circleAngle);
+            userLng = centerLng + radius * Math.cos(window.circleAngle);
+            
+            // Tentukan arah berdasarkan perubahan sudut
+            if (Math.sin(window.circleAngle) > 0) {
+                currentDirection = 'up';
+            } else {
+                currentDirection = 'down';
+            }
+            
+            updateUserPosition();
+            updateStatus("Auto Walk: lingkaran");
+            
+            // Update alamat secara berkala
+            if (Math.random() > 0.9) {
+                simulateAddressChange();
+            }
+        }
+        
+        // Cek apakah dekat dengan hotspot
+        function checkNearHotspot() {
+            hotspots.forEach(hotspot => {
+                const distance = calculateDistance(userLat, userLng, hotspot.lat, hotspot.lng);
+                if (distance < 0.2) { // Dalam 200m
+                    updateStatus(`Dekat ${hotspot.name} (${(distance*1000).toFixed(0)}m)`);
+                }
+            });
+        }
+        
+        // Tampilkan tips
+        function showTips() {
+            document.getElementById('tipsModal').classList.remove('hidden');
+        }
+        
+        // Sembunyikan tips
+        function hideTips() {
+            document.getElementById('tipsModal').classList.add('hidden');
+        }
+        
+        // Tampilkan notifikasi
+        function showNotification(message, type) {
+            // Buat elemen notifikasi
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 80px;
+                left: 50%;
+                transform: translateX(-50%);
+                background-color: ${type === 'success' ? '#00b14f' : type === 'error' ? '#f44336' : '#ff9800'};
+                color: white;
+                padding: 12px 20px;
+                border-radius: 10px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                z-index: 3000;
+                font-weight: 600;
+                max-width: 80%;
+                text-align: center;
+                animation: slideIn 0.3s ease-out;
+            `;
+            
+            // Tambahkan style animation
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes slideIn {
+                    from { top: 50px; opacity: 0; }
+                    to { top: 80px; opacity: 1; }
+                }
+            `;
+            document.head.appendChild(style);
+            
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            // Hapus notifikasi setelah 3 detik
+            setTimeout(() => {
+                notification.style.animation = 'slideOut 0.3s ease-out';
+                setTimeout(() => {
+                    document.body.removeChild(notification);
+                }, 300);
+            }, 3000);
+        }
+        
+        // Deteksi jika aplikasi dijalankan di HP
+        function isMobileDevice() {
+            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        }
+        
+        // Inisialisasi untuk perangkat mobile
+        if (isMobileDevice()) {
+            // Lock orientation jika didukung
+            if (screen.orientation && screen.orientation.lock) {
+                screen.orientation.lock('portrait').catch(() => {
+                    // Jika lock orientation gagal, tidak ada masalah
+                });
+            }
+            
+            // Tambahkan pesan untuk menginstal sebagai PWA
+            window.addEventListener('beforeinstallprompt', (e) => {
+                e.preventDefault();
+                showNotification("Instal aplikasi untuk pengalaman lebih baik", "info");
+            });
+        }
+    </script>
+</body>
+</html>
